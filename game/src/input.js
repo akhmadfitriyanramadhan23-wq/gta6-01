@@ -1,82 +1,60 @@
-// Keyboard and pointer input for Solmar Bay.
-// Held keys give a movement direction; one-shot presses (confirm, pause,
-// punch, enter/exit a car) are queued as flags and taken once by the loop,
-// so a press between two frames is never lost and never counted twice.
+// Solmar Bay — keyboard input. Holds the keys down right now and the
+// one-shot presses (punch, enter/exit car) since the last frame was read.
+const GAME_KEYS = new Set([
+  'KeyW', 'KeyA', 'KeyS', 'KeyD',
+  'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight',
+  'Space', 'ShiftLeft', 'ShiftRight',
+]);
 
-export const ACTION_CONFIRM = 1;
-export const ACTION_PAUSE = 2;
-export const ACTION_PUNCH = 4;
-export const ACTION_ENTER = 8;
+export function createInput() {
+  const down = new Set();
+  const pressed = new Set();
 
-const UP = new Set(['ArrowUp', 'KeyW']);
-const DOWN = new Set(['ArrowDown', 'KeyS']);
-const LEFT = new Set(['ArrowLeft', 'KeyA']);
-const RIGHT = new Set(['ArrowRight', 'KeyD']);
-const RUN = new Set(['ShiftLeft', 'ShiftRight']);
-const CONFIRM = new Set(['Enter']);
-const PAUSE = new Set(['KeyP', 'Escape']);
-const PUNCH = new Set(['Space']);
-const ENTER = new Set(['KeyE']);
-
-export function createInput(target) {
-  const held = { up: false, down: false, left: false, right: false, run: false };
-  let actions = 0;
-
-  function releaseAll() {
-    held.up = false;
-    held.down = false;
-    held.left = false;
-    held.right = false;
-    held.run = false;
+  function onKeyDown(event) {
+    if (GAME_KEYS.has(event.code) || event.code === 'Enter' || event.code === 'KeyP' || event.code === 'Escape' || event.code === 'KeyE') {
+      event.preventDefault();
+    }
+    if (!event.repeat) pressed.add(event.code);
+    down.add(event.code);
   }
 
-  window.addEventListener('keydown', (event) => {
-    if (UP.has(event.code)) held.up = true;
-    else if (DOWN.has(event.code)) held.down = true;
-    else if (LEFT.has(event.code)) held.left = true;
-    else if (RIGHT.has(event.code)) held.right = true;
-    else if (RUN.has(event.code)) held.run = true;
-    else if (CONFIRM.has(event.code)) {
-      if (!event.repeat) actions |= ACTION_CONFIRM;
-    } else if (PAUSE.has(event.code)) {
-      if (!event.repeat) actions |= ACTION_PAUSE;
-    } else if (PUNCH.has(event.code)) {
-      if (!event.repeat) actions |= ACTION_PUNCH;
-    } else if (ENTER.has(event.code)) {
-      if (!event.repeat) actions |= ACTION_ENTER;
-    } else return;
-    event.preventDefault();
-  });
-  window.addEventListener('keyup', (event) => {
-    if (UP.has(event.code)) held.up = false;
-    else if (DOWN.has(event.code)) held.down = false;
-    else if (LEFT.has(event.code)) held.left = false;
-    else if (RIGHT.has(event.code)) held.right = false;
-    else if (RUN.has(event.code)) held.run = false;
-  });
-  // A key released while the tab is hidden never sends keyup: let go of
-  // everything on blur.
-  window.addEventListener('blur', releaseAll);
-  target.addEventListener('pointerdown', () => {
-    actions |= ACTION_CONFIRM;
-  });
+  function onKeyUp(event) {
+    down.delete(event.code);
+  }
 
-  return {
-    /** Movement axis: x -1..1 (left/right), y -1..1 (up/down). */
-    axis() {
-      return {
-        x: (held.right ? 1 : 0) - (held.left ? 1 : 0),
-        y: (held.down ? 1 : 0) - (held.up ? 1 : 0),
-      };
-    },
-    running() {
-      return held.run;
-    },
-    /** The one-shot presses since the last call, as ACTION_* flags. */
-    takeActions() {
-      const taken = actions;
-      actions = 0;
-      return taken;
-    },
-  };
+  function attach() {
+    window.addEventListener('keydown', onKeyDown);
+    window.addEventListener('keyup', onKeyUp);
+  }
+
+  function detach() {
+    window.removeEventListener('keydown', onKeyDown);
+    window.removeEventListener('keyup', onKeyUp);
+  }
+
+  // The input object one world step consumes. One-shot presses are
+  // consumed here; menu keys (Enter, P, Escape) stay for wasPressed().
+  function read() {
+    const input = {
+      up: down.has('KeyW') || down.has('ArrowUp'),
+      down: down.has('KeyS') || down.has('ArrowDown'),
+      left: down.has('KeyA') || down.has('ArrowLeft'),
+      right: down.has('KeyD') || down.has('ArrowRight'),
+      run: down.has('ShiftLeft') || down.has('ShiftRight'),
+      action: pressed.has('Space'),
+      enter: pressed.has('KeyE'),
+    };
+    pressed.delete('Space');
+    pressed.delete('KeyE');
+    return input;
+  }
+
+  // True once per physical press of a menu key.
+  function wasPressed(code) {
+    if (!pressed.has(code)) return false;
+    pressed.delete(code);
+    return true;
+  }
+
+  return { attach, detach, read, wasPressed, down };
 }
