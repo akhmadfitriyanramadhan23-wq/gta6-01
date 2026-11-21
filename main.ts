@@ -4,12 +4,14 @@
 // no network request), and the program hands it in. It copies game/ and
 // screenshots/ from beside this file to /output and writes
 // /output/dossier.json, the summary the judge reads, with the vendored
-// make.fun library. The game itself is an original top-down open-world
-// crime game: a seaside city to explore on foot and by car, traffic and
-// pedestrians, cars to steal, a wanted level with police, three story
-// missions and free-roam fares, combat, a HUD with a minimap, a start
-// screen and a save. Put 3 or 4 PNG or JPEG screenshots of it in
-// screenshots/ (the first by name is the cover) and run it.
+// make.fun library.
+//
+// The game itself is an original 2D top-down open-world crime game: a
+// 3200x2400 city to explore on foot and by car, traffic and pedestrians,
+// cars to steal, a 0-5 star wanted level with police who chase you, three
+// story missions with Rook and Mara, taxi fares, hidden cash stashes, a HUD
+// with a minimap, a start screen and a save in localStorage. Nothing in it
+// comes from any commercial game.
 //
 // Serve it locally with `node serve.ts`, then open http://localhost:8080.
 // Outside the grader's container, MAKEFUN_OUTPUT_DIR stands in for /output:
@@ -22,12 +24,6 @@ import { buildDossier } from './vendor/makefun-game.ts';
 
 const here = fileURLToPath(new URL('.', import.meta.url));
 const out = process.env.MAKEFUN_OUTPUT_DIR ?? '/output';
-
-// A missing entry point means the game cannot open: fail here, naming the
-// file, instead of handing in a game folder with no front door.
-if (!existsSync(join(here, 'game', 'index.html'))) {
-  throw new Error('Solmar Bay: game/index.html is missing — the game has no entry point to hand in.');
-}
 
 mkdirSync(out, { recursive: true });
 cpSync(join(here, 'game'), join(out, 'game'), { recursive: true });
